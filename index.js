@@ -17,6 +17,7 @@ async function run() {
     try {
         const appointmentCollection = client.db('appointments').collection('appointmentOptions');
         const bookingsInfoCollections = client.db('appointments').collection('bookings')
+        const userssInfoCollections = client.db('appointments').collection('users')
 
         app.get('/appointmentOptions', async (req, res) => {
             const query = {};
@@ -76,6 +77,14 @@ async function run() {
             }
             const cursor = await bookingsInfoCollections.find(query).toArray()
             res.send(cursor)
+        })
+
+
+        app.post('/users', async(req, res) => {
+            const user = req.body;
+            console.log(user);
+            const result = await userssInfoCollections.insertOne(user);
+            res.send(result)
         })
     }
     finally {
