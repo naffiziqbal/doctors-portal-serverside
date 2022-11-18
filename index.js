@@ -15,14 +15,43 @@ console.log(uri);
 
 async function run() {
     try {
-        const appointmentCollection = client.db('appointments').collection('appointmentOptions')
+        const appointmentCollection = client.db('appointments').collection('appointmentOptions');
+        const bookingsInfoCollections = client.db('appointments').collection('bookings')
 
         app.get('/appointmentOptions', async (req, res) => {
             const query = {};
-            const cursor = await appointmentCollection.find(query).toArray()
-            res.send(cursor)
-            console.log(cursor);
+            const date = req.query.date;
+            const cursor = await appointmentCollection.find(query).toArray();
 
+            const bookingQuery = {
+                appointmentDate: date
+            };
+            const alreadyBooked = await bookingsInfoCollections.find(bookingQuery).toArray();
+
+            cursor.forEach(option => {
+                const optionBooked = alreadyBooked.filter(book => book.treatment === option.name);
+                console.log(optionBooked);
+                const bookedSlots = optionBooked.map(book => book.slot)
+                console.log(option.name + " Option Name", date, bookedSlots);
+                const remainingSlots = option.slots.filter(slot => !bookedSlots.includes(slot));
+                option.slots = remainingSlots
+                console.log(remainingSlots.length);
+                console.log(cursor.slots);
+
+            })
+
+            res.send(cursor)
+
+        })
+        app.post('/bookings', async (req, res) => {
+            const bookings = req.body;
+            const result = await bookingsInfoCollections.insertOne(bookings)
+            res.send(result)
+        })
+        app.get('/bookings', async (req, res) => {
+            const query = {}
+            const cursor = await bookingsInfoCollections.find(query).toArray()
+            res.send(cursor)
         })
     }
     finally {
