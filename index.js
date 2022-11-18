@@ -21,10 +21,12 @@ async function run() {
         app.get('/appointmentOptions', async (req, res) => {
             const query = {};
             const date = req.query.date;
+            const email = req.query.email
             const cursor = await appointmentCollection.find(query).toArray();
 
             const bookingQuery = {
-                appointmentDate: date
+                appointmentDate: date,
+                email: email
             };
             const alreadyBooked = await bookingsInfoCollections.find(bookingQuery).toArray();
 
@@ -45,10 +47,13 @@ async function run() {
         })
         app.post('/bookings', async (req, res) => {
             const bookings = req.body;
+            const email = req.query.email
+
 
             const query = {
                 appointmentDate: bookings.appointmentDate,
-                treatment: bookings.treatment
+                treatment: bookings.treatment,
+                email: email
             }
             const alreadyBooked = await bookingsInfoCollections.find(query).toArray()
             if (alreadyBooked.length) {
@@ -58,8 +63,17 @@ async function run() {
             const result = await bookingsInfoCollections.insertOne(bookings)
             res.send(result)
         })
-        app.get('/bookings', async (req, res) => {
+        app.get('/allbookings', async (req, res) => {
             const query = {}
+            const cursor = await bookingsInfoCollections.find(query).toArray()
+            res.send(cursor)
+        })
+        app.get('/bookings', async (req, res) => {
+            const email = req.query.email;
+            console.log(email);
+            const query = {
+                email
+            }
             const cursor = await bookingsInfoCollections.find(query).toArray()
             res.send(cursor)
         })
