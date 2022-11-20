@@ -156,10 +156,17 @@ async function run() {
 
         })
         app.get('/users/admin/', async (req, res) => {
-            const query = {role : 'admin' };
+            const query = { role: 'admin' };
             const user = await userssInfoCollections.find(query).toArray();
             console.log(user);
             res.send(user)
+
+        });
+
+        app.get('/appointmentData', async (req, res) => {
+            const query = {};
+            const data = await appointmentCollection.find(query).project({name : 1}).toArray()
+            res.send(data)
 
         })
     }
