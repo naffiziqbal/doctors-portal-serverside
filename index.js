@@ -3,7 +3,6 @@ const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config()
 const jwt = require('jsonwebtoken');
-const e = require('express');
 
 const app = express();
 
@@ -18,7 +17,6 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 console.log(uri);
 
 const verifyJwt = (req, res, next) => {
-    console.log(req.headers.authorization);
     const authHeader = req.headers.authorization;
     if (!authHeader) {
         return res.status(401).send("UnAuthorized User")
@@ -56,9 +54,13 @@ async function run() {
             cursor.forEach(option => {
                 const optionBooked = alreadyBooked.filter(book => book.treatment === option.name);
                 console.log(optionBooked);
+
                 const bookedSlots = optionBooked.map(book => book.slot)
+
                 console.log(option.name + " Option Name", date, bookedSlots);
+
                 const remainingSlots = option.slots.filter(slot => !bookedSlots.includes(slot));
+
                 option.slots = remainingSlots
                 console.log(remainingSlots.length);
                 console.log(cursor.slots);
@@ -72,13 +74,14 @@ async function run() {
             const bookings = req.body;
             const email = req.query.email
 
-
             const query = {
                 appointmentDate: bookings.appointmentDate,
                 treatment: bookings.treatment,
                 email: email
             }
-            const alreadyBooked = await bookingsInfoCollections.find(query).toArray()
+
+            const alreadyBooked = await bookingsInfoCollections.find(query).toArray();
+
             if (alreadyBooked.length) {
                 const message = `You Have a Booking Already ${bookings.appointmentDate}`
                 return res.send({ acknowledged: false, message })
@@ -86,11 +89,13 @@ async function run() {
             const result = await bookingsInfoCollections.insertOne(bookings)
             res.send(result)
         })
+
         app.get('/allbookings', async (req, res) => {
             const query = {}
             const cursor = await bookingsInfoCollections.find(query).toArray()
             res.send(cursor)
         })
+
         app.get('/bookings', verifyJwt, async (req, res) => {
             const email = req.query.email;
             const query = {
@@ -110,7 +115,8 @@ async function run() {
 
             const user = await userssInfoCollections.findOne(query);
             if (user) {
-                const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, { expiresIn: "1h" })
+                const token = jwt.sign({ email },
+                    process.env.ACCESS_TOKEN)
                 return res.send({ accessToken: token })
             }
             console.log(user);
@@ -166,20 +172,32 @@ async function run() {
 
         app.get('/appointmentData', async (req, res) => {
             const query = {};
-            const data = await appointmentCollection.find(query).project({name : 1}).toArray()
+            const data = await appointmentCollection.find(query).project({ name: 1 }).toArray()
             res.send(data)
 
         })
 
 
-        app.post('/doctors', async(req,res)=> {
+        app.post('/doctors', async (req, res) => {
             const doctors = req.body;
             const result = await doctorsCollection.insertOne(doctors);
             res.send(result)
         })
-        app.get('/doctors', async(req,res)=> {
+        app.get('/doctors', async (req, res) => {
             const query = {}
             const result = await doctorsCollection.find(query).toArray();
+            res.send(result)
+        })
+        app.delete('/doctors/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = {_id : ObjectId(id)}
+            const result = await doctorsCollection.deleteOne(query)
+            res.send(result)
+        })
+        app.delete('/allusers/:id', async(req, res)=>{
+            const id = req.params.id;
+            const filter = {_id : ObjectId(id)}
+            const result = await userssInfoCollections.deleteOne(filter);
             res.send(result)
         })
     }
