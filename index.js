@@ -3,7 +3,7 @@ const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config()
 const jwt = require('jsonwebtoken');
-
+const stripe = require("stripe")('sk_test_51M7EfqSIgvXyYh7OLAIJ1QlSWTR8FigEbLykQorsz6wlHiBXtt5DuG2pgZhI2EVUmdt9rdLxnC9c43HOTy9C1pWG00y6jSGzbX');
 const app = express();
 
 
@@ -38,6 +38,7 @@ async function run() {
         const bookingsInfoCollections = client.db('appointments').collection('bookings')
         const userssInfoCollections = client.db('appointments').collection('users');
         const doctorsCollection = client.db('appointments').collection('doctors');
+        const paymentsCollections = client.db('appointments').collection('payments');
 
         //   A Middleware For Checking Whether The User is Admin or Not! 
         const verifyAdmin = async (req, res, next) => {
@@ -141,6 +142,13 @@ async function run() {
             }
             const cursor = await bookingsInfoCollections.find(query).toArray()
             res.send(cursor)
+        })
+
+        app.get('/bookings/:id', async (req, res) => {
+            const id = req.params.id
+            const query = { _id: ObjectId(id) }
+            const booking = await bookingsInfoCollections.findOne(query);
+            res.send(booking)
         })
 
 
@@ -279,6 +287,39 @@ async function run() {
             console.log(process.env.ACCESS_TOKEN);
 
         })
+
+        app.post('/create-payment-intent', async (req, res) => {
+            const booking = req.body;
+            const price = booking.price;
+            const amount = price * 100;
+
+            const paymentIntent  = await stripe.paymentIntents.create({
+                currency: 'usd',
+                amount: amount,
+                "payment_method_types": [
+                    "card"
+                ],
+
+            })
+            res.send({
+                clientSecret: paymentIntent.client_secret
+            })
+        })
+        app.post('/payments', async(req,res)=>{
+            const payment = req.body;
+            const result = await paymentsCollections.insertOne(payment)
+            const id = payment.bookingId;
+            const query = {_id : ObjectId(id)}
+            const updateDoc = {
+                $set : {
+                    paid : true,
+                    transectionId : payment.transectionId
+                }
+            }
+            const update = await bookingsInfoCollections.updateOne(filter, updateDoc)
+            res.send(result)
+        })
+
 
 
 
