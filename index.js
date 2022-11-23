@@ -14,7 +14,6 @@ const port = process.env.PORT || 5000;
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster1.zscbcon.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
-console.log(uri);
 
 //Middleware For Verify JWT 
 
@@ -23,10 +22,10 @@ const verifyJwt = (req, res, next) => {
     if (!authHeader) {
         return res.status(401).send("UnAuthorized User")
     }
-    const token = authHeader.split(' ')[1]
+    const token = authHeader.split(' ')[1];
     jwt.verify(token, process.env.ACCESS_TOKEN, function (err, decoded) {
         if (err) {
-            return res.status(401).send({ message: 'Forbiden Access' })
+            return res.status(401).send({ message: 'Unauthorised Token' })
         }
         req.decoded = decoded;
         next()
@@ -54,27 +53,12 @@ async function run() {
 
         }
 
-        // Send JWT Token To User 
-        app.get('/jwt', async (req, res) => {
-            const email = req.query.email;
-            const query = { email: email }
-
-            const user = await userssInfoCollections.findOne(query);
-            if (user) {
-                const token = jwt.sign({ email },
-                    process.env.ACCESS_TOKEN)
-                return res.send({ accessToken: token })
-            }
-            res.status(403).send({ accessToken: " " }) //If There is no user! Send Empty Token 
-
-        })
-
 
 
         // Get All Appointment Option From the Server! 
         app.get('/appointmentOptions', async (req, res) => {
-            const query = {};
             const date = req.query.date; //get appointment date
+            const query = {};
             const email = req.query.email //get user email
             const cursor = await appointmentCollection.find(query).toArray(); // get All Of The Appointment Data 
 
@@ -147,12 +131,13 @@ async function run() {
         // Get Booking Only For That User 
         app.get('/bookings', verifyJwt, async (req, res) => {
             const email = req.query.email;
+            const decodEmail = req.decoded.email;
+
+            if (email !== decodEmail) {
+                res.status(401).send({ message: "forbidden Access/Unauthorized User" })
+            }
             const query = {
                 email
-            }
-            const decodEmail = req.decoded.email;
-            if (email !== decodEmail) {
-                res.status(401).send({ message: "forbidden Access" })
             }
             const cursor = await bookingsInfoCollections.find(query).toArray()
             res.send(cursor)
@@ -161,7 +146,7 @@ async function run() {
 
         // Create User and Set Them In DB 
 
-        app.post('/users', verifyJwt, verifyAdmin, async (req, res) => {
+        app.post('/users', async (req, res) => {
             const user = req.body;
             console.log(user);
             const result = await userssInfoCollections.insertOne(user);
@@ -215,7 +200,37 @@ async function run() {
 
         });
 
+        // Get Single User 
+        app.get('/user', async (req, res) => {
+            const email = req.query.email;
+            const filter = {
+                email: email
+            }
+            const result = await userssInfoCollections.findOne(filter)
+            console.log(result);
+            res.send(result)
+        })
 
+
+        //Update User Name 
+        app.put('/dashboard/user/:id', async (req, res) => {
+            const id = req.params.id;
+            console.log(id, ' id');
+            const displayName = req.body.displayName;
+            console.log(displayName, ' name');
+            const filter = { _id: ObjectId(id) }
+            console.log(filter);
+
+            const option = { upsert: true }
+            const updateName = {
+                $set: {
+                    displayName: displayName
+                }
+            }
+            const result = await userssInfoCollections.updateOne(filter, option, updateName)
+            res.send(result)
+            console.log(result)
+        })
 
         // Create Doctor 
         app.post('/doctors', verifyJwt, async (req, res) => {
@@ -236,6 +251,36 @@ async function run() {
             const result = await doctorsCollection.deleteOne(query)
             res.send(result)
         })
+
+        //Update Price 
+        app.get('/addprice', async (req, res) => {
+            const filter = {}
+            const option = { upsert: true }
+            const updateDoc = {
+                $set: {
+                    price: 99
+                }
+            }
+            const result = appointmentCollection.updateMany(filter, updateDoc, option)
+            res.send(result)
+        })
+        // Send JWT Token To User 
+        app.get('/jwt', async (req, res) => {
+            const email = req.query.email;
+            const query = { email: email }
+
+            const user = await userssInfoCollections.findOne(query);
+            if (user) {
+                const token = jwt.sign({ email },
+                    process.env.ACCESS_TOKEN)
+                return res.send({ accessToken: token })
+            }
+            res.status(403).send({ accessToken: " " }) //If There is no user! Send Empty Token 
+            console.log(process.env.ACCESS_TOKEN);
+
+        })
+
+
 
     }
     finally {
